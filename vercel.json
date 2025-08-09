@@ -14,10 +14,5 @@
   ],
   "env": {
     "PYTHONPATH": "."
-  },
-  "functions": {
-    "main_vercel.py": {
-      "maxDuration": 60
-    }
   }
 }
