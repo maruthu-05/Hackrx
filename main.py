@@ -16,7 +16,7 @@ from src.document_processor import DocumentProcessor
 from src.embedding_search import EmbeddingSearch
 from src.clause_matcher import ClauseMatcher
 from src.logic_evaluator import LogicEvaluator
-from src.models import QueryRequest, QueryResponse
+from src.models import QueryRequest, QueryResponse, DocumentChunk
 
 # Load environment variables
 load_dotenv()
@@ -61,17 +61,109 @@ def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)
 # Initialize system components at module level
 async def initialize_system():
     """Initialize system components"""
-    await embedding_search.initialize()
+    try:
+        await embedding_search.initialize()
+        print("System initialized successfully")
+    except Exception as e:
+        print(f"Failed to initialize system: {e}")
+        raise
 
 # We'll initialize on first request instead of startup
 
 @app.get("/")
 async def root():
-    return {"message": "LLM-Powered Query-Retrieval System is running"}
+    return {
+        "message": "LLM-Powered Query-Retrieval System is running",
+        "version": "1.0.0",
+        "endpoints": {
+            "health": "/health",
+            "detailed_health": "/health/detailed",
+            "main_api": "/hackrx/run",
+            "docs": "/docs"
+        }
+    }
+
+@app.get("/test")
+async def test_endpoint():
+    """Simple test endpoint to verify the system works"""
+    try:
+        # Test basic functionality without document processing
+        test_chunks = [
+            DocumentChunk(
+                content="This is a test policy document with coverage information.",
+                page_number=1,
+                chunk_id="test-1"
+            ),
+            DocumentChunk(
+                content="The waiting period for claims is 30 days from policy inception.",
+                page_number=1,
+                chunk_id="test-2"
+            )
+        ]
+        
+        # Test embedding search
+        await embedding_search.build_index(test_chunks)
+        results = await embedding_search.search("waiting period", top_k=2)
+        
+        return {
+            "status": "success",
+            "message": "System test completed successfully",
+            "test_results": {
+                "chunks_processed": len(test_chunks),
+                "search_results": len(results),
+                "top_result": results[0].content[:100] + "..." if results else "No results"
+            }
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"System test failed: {str(e)}"
+        }
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "message": "System is operational"}
+    try:
+        # Basic health check - just return status
+        return {"status": "healthy", "message": "System is operational"}
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}
+
+@app.get("/health/detailed")
+async def detailed_health_check():
+    """Detailed health check that tests system components"""
+    global _system_initialized
+    
+    try:
+        status = {
+            "status": "healthy",
+            "components": {
+                "server": "running",
+                "system_initialized": _system_initialized,
+                "document_processor": "ready",
+                "embedding_search": "ready",
+                "logic_evaluator": "ready"
+            }
+        }
+        
+        # Test if we can initialize the system
+        if not _system_initialized:
+            await initialize_system()
+            _system_initialized = True
+            status["components"]["system_initialized"] = True
+        
+        return status
+        
+    except Exception as e:
+        return {
+            "status": "unhealthy", 
+            "error": str(e),
+            "components": {
+                "server": "running",
+                "system_initialized": False,
+                "error_details": str(e)
+            }
+        }
 
 # Global flag to track initialization
 _system_initialized = False
@@ -136,8 +228,10 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     host = "0.0.0.0"  # Accept connections from any IP for deployment
     
+    print(f"Starting server on {host}:{port}")
+    
     uvicorn.run(
-        "main:app",
+        app,  # Use app directly instead of string
         host=host,
         port=port,
         reload=False  # Disable reload in production
