@@ -13,7 +13,7 @@ import os
 from dotenv import load_dotenv
 
 from src.document_processor import DocumentProcessor
-from src.embedding_search_lite import EmbeddingSearchLite
+from src.embedding_search import EmbeddingSearch
 from src.clause_matcher import ClauseMatcher
 from src.logic_evaluator import LogicEvaluator
 from src.models import QueryRequest, QueryResponse
@@ -44,7 +44,7 @@ app.add_middleware(
 
 # Initialize system components
 document_processor = DocumentProcessor()
-embedding_search = EmbeddingSearchLite()
+embedding_search = EmbeddingSearch()
 clause_matcher = ClauseMatcher()
 logic_evaluator = LogicEvaluator()
 
