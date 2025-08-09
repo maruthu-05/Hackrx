@@ -32,8 +32,7 @@ pip install PyPDF2==3.0.1
 pip install python-docx==1.1.0
 
 echo Installing ML packages...
-pip install sentence-transformers==2.2.2
-pip install faiss-cpu==1.7.4
+pip install scikit-learn==1.3.2
 pip install numpy==1.24.3
 
 echo Installing Google Gemini and utilities...

@@ -69,7 +69,6 @@ Always maintain a professional, helpful tone while being precise and factual."""
             
         except Exception as e:
             # Fallback to rule-based response if LLM fails
-            print(f"⚠️ LLM evaluation failed: {str(e)}")
             return self._generate_fallback_response(query, matched_clauses)
     
     def _prepare_context(self, matched_clauses: List[ClauseMatch]) -> str:
@@ -104,7 +103,6 @@ Please provide a clear, accurate answer based solely on the information in these
             # Check if API key is configured
             api_key = os.getenv('GEMINI_API_KEY', 'your-gemini-api-key-here')
             if api_key == 'your-gemini-api-key-here' or not api_key:
-                print("⚠️ Gemini API key not configured, using fallback response")
                 return "API key not configured. Please set GEMINI_API_KEY in your .env file."
             
             # Combine system prompt and user prompt for Gemini
@@ -126,7 +124,6 @@ Please provide a clear, accurate answer based solely on the information in these
             return response.text.strip()
             
         except Exception as e:
-            print(f"⚠️ Gemini API error: {str(e)}")
             # Fall back to rule-based response
             return f"Gemini API error: {str(e)}. Please check your API key and try again."
     

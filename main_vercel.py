@@ -1,6 +1,6 @@
 """
-LLM-Powered Intelligent Query-Retrieval System
-Main FastAPI application entry point
+LLM-Powered Intelligent Query-Retrieval System - Vercel Version
+Optimized for serverless deployment with lighter dependencies
 """
 
 from fastapi import FastAPI, HTTPException, Depends, status
@@ -13,7 +13,7 @@ import os
 from dotenv import load_dotenv
 
 from src.document_processor import DocumentProcessor
-from src.embedding_search_lite import EmbeddingSearchLite
+from src.embedding_search_lite import EmbeddingSearchLite  # Use lite version
 from src.clause_matcher import ClauseMatcher
 from src.logic_evaluator import LogicEvaluator
 from src.models import QueryRequest, QueryResponse
@@ -44,9 +44,16 @@ app.add_middleware(
 
 # Initialize system components
 document_processor = DocumentProcessor()
-embedding_search = EmbeddingSearchLite()
+embedding_search = EmbeddingSearchLite()  # Use lite version
 clause_matcher = ClauseMatcher()
 logic_evaluator = LogicEvaluator()
+
+# Global flag to track initialization
+_system_initialized = False
+
+async def initialize_system():
+    """Initialize system components"""
+    await embedding_search.initialize()
 
 def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Verify API key authentication"""
@@ -58,13 +65,6 @@ def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)
         )
     return credentials.credentials
 
-# Initialize system components at module level
-async def initialize_system():
-    """Initialize system components"""
-    await embedding_search.initialize()
-
-# We'll initialize on first request instead of startup
-
 @app.get("/")
 async def root():
     return {"message": "LLM-Powered Query-Retrieval System is running"}
@@ -72,9 +72,6 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "message": "System is operational"}
-
-# Global flag to track initialization
-_system_initialized = False
 
 @app.post("/hackrx/run", response_model=QueryResponse)
 async def process_queries(
@@ -124,6 +121,7 @@ async def process_queries(
             except Exception as e:
                 # Provide fallback answer
                 answers.append(f"Unable to process this question: {str(e)}")
+        
         return QueryResponse(answers=answers)
         
     except Exception as e:
@@ -132,13 +130,16 @@ async def process_queries(
             detail=f"Error processing queries: {str(e)}"
         )
 
+# Vercel handler
+handler = app
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
-    host = "0.0.0.0"  # Accept connections from any IP for deployment
+    host = "0.0.0.0"
     
     uvicorn.run(
-        "main:app",
+        "main_vercel:app",
         host=host,
         port=port,
-        reload=False  # Disable reload in production
+        reload=False
     )

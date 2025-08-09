@@ -29,13 +29,9 @@ class DocumentProcessor:
             List of DocumentChunk objects with extracted content
         """
         try:
-            print(f"📥 Downloading document from: {document_url[:50]}...")
-            
             # Download document
             response = requests.get(document_url, timeout=30)
             response.raise_for_status()
-            
-            print(f"✅ Downloaded {len(response.content)} bytes")
             
             # Determine file type from URL or content-type
             content_type = response.headers.get('content-type', '').lower()
@@ -48,7 +44,7 @@ class DocumentProcessor:
                 # Try to process as text
                 chunks = await self._process_text(response.text)
             
-            print(f"✅ Extracted {len(chunks)} chunks from document")
+
             
             # Ensure we have at least some content
             if not chunks:
@@ -62,7 +58,6 @@ class DocumentProcessor:
             return chunks
                 
         except Exception as e:
-            print(f"❌ Document processing error: {str(e)}")
             # Return a fallback chunk instead of raising
             return [DocumentChunk(
                 content=f"Error processing document: {str(e)}",

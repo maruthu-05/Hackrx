@@ -1,6 +1,6 @@
 # LLM-Powered Intelligent Query-Retrieval System
 
-A sophisticated document processing and query system designed for insurance, legal, HR, and compliance domains. The system uses advanced NLP techniques including embeddings, semantic search, and LLM-powered reasoning to provide accurate, contextual answers from complex documents.
+An enterprise-grade document processing and query system for insurance, legal, HR, and compliance domains. Built with FastAPI, Google Gemini, FAISS vector search, and advanced NLP techniques to deliver accurate, contextual answers from complex documents.
 
 ## 🏗️ System Architecture
 
@@ -88,25 +88,10 @@ Authorization: Bearer 9fcf52ab0952ca875021a92ff7bd5557eedb4f49f016e0894610e10144
 
 ## 🧪 Testing
 
-### Local Testing
-```bash
-# Basic functionality test
-python test_api.py
-
-# Comprehensive compliance test
-python validate_api.py
-
-# Test deployed API
-python validate_api.py https://your-deployed-url.com
-```
-
-### Pre-Submission Checklist
-✅ API responds to POST /hackrx/run  
-✅ Bearer token authentication working  
-✅ HTTPS enabled (for production)  
-✅ Response time < 30 seconds  
-✅ Returns JSON with "answers" array  
-✅ Handles all sample questions  
+Test the API endpoints:
+- **Health Check**: `GET /health`
+- **Main Endpoint**: `POST /hackrx/run`
+- **API Documentation**: `/docs` (Swagger UI)
 
 ## 🎯 Evaluation Criteria
 
