@@ -1,59 +1,53 @@
 """
-Embedding-based semantic search using FAISS
-Handles document indexing and similarity search
+Lightweight semantic search using TF-IDF and scikit-learn
+Optimized for Railway deployment with size constraints
 """
 
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-import faiss
-from sentence_transformers import SentenceTransformer
 from typing import List, Dict, Any, Tuple
 from src.models import DocumentChunk, ClauseMatch
 
 class EmbeddingSearch:
-    """FAISS-based semantic search for document chunks"""
+    """TF-IDF based semantic search for document chunks"""
     
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        self.model_name = model_name
-        self.model = None
-        self.index = None
+    def __init__(self):
+        self.vectorizer = None
+        self.tfidf_matrix = None
         self.chunks = []
-        self.embeddings = None
         
     async def initialize(self):
-        """Initialize the sentence transformer model"""
-        self.model = SentenceTransformer(self.model_name)
+        """Initialize the TF-IDF vectorizer"""
+        self.vectorizer = TfidfVectorizer(
+            max_features=5000,
+            stop_words='english',
+            ngram_range=(1, 2),
+            min_df=1,
+            max_df=0.95
+        )
     
     async def build_index(self, chunks: List[DocumentChunk]):
         """
-        Build FAISS index from document chunks
+        Build TF-IDF index from document chunks
         
         Args:
             chunks: List of document chunks to index
         """
-        if not self.model:
+        if not self.vectorizer:
             await self.initialize()
         
         self.chunks = chunks
         
-        # Extract text content for embedding
+        # Extract text content for vectorization
         texts = [chunk.content for chunk in chunks]
         
-        # Generate embeddings
-        self.embeddings = self.model.encode(texts, show_progress_bar=False)
-        
-        # Build FAISS index
-        dimension = self.embeddings.shape[1]
-        self.index = faiss.IndexFlatIP(dimension)  # Inner product for cosine similarity
-        
-        # Normalize embeddings for cosine similarity
-        faiss.normalize_L2(self.embeddings)
-        
-        # Add embeddings to index
-        self.index.add(self.embeddings.astype('float32'))
+        # Create TF-IDF matrix
+        self.tfidf_matrix = self.vectorizer.fit_transform(texts)
     
     async def search(self, query: str, top_k: int = 5) -> List[ClauseMatch]:
         """
-        Search for relevant document chunks using semantic similarity
+        Search for relevant document chunks using TF-IDF similarity
         
         Args:
             query: Search query
@@ -62,46 +56,37 @@ class EmbeddingSearch:
         Returns:
             List of ClauseMatch objects with relevance scores
         """
-        if not self.index or not self.model:
-            raise Exception("Index not built. Call build_index() first.")
-        
-        # Encode query
-        query_embedding = self.model.encode([query])
-        faiss.normalize_L2(query_embedding)
-        
-        # Search index
-        try:
-            scores, indices = self.index.search(query_embedding.astype('float32'), top_k)
-        except Exception as e:
+        if self.tfidf_matrix is None or not self.vectorizer:
             return []
         
-        # Convert results to ClauseMatch objects
-        matches = []
-        
-        # Handle empty results
-        if len(scores) == 0 or len(indices) == 0:
+        try:
+            # Vectorize query
+            query_vector = self.vectorizer.transform([query])
+            
+            # Calculate cosine similarity
+            similarities = cosine_similarity(query_vector, self.tfidf_matrix).flatten()
+            
+            # Get top k indices
+            top_indices = np.argsort(similarities)[::-1][:top_k]
+            
+            # Convert results to ClauseMatch objects
+            matches = []
+            for idx in top_indices:
+                if idx < len(self.chunks) and similarities[idx] > 0:
+                    chunk = self.chunks[idx]
+                    
+                    match = ClauseMatch(
+                        content=chunk.content,
+                        relevance_score=float(similarities[idx]),
+                        source_location=f"Page {chunk.page_number}" if chunk.page_number else "Unknown",
+                        context=self._get_context(idx)
+                    )
+                    matches.append(match)
+            
             return matches
             
-        # Ensure we have valid results
-        if len(scores[0]) == 0 or len(indices[0]) == 0:
-            return matches
-        
-        for score, idx in zip(scores[0], indices[0]):
-            # Skip invalid indices
-            if idx < 0 or idx >= len(self.chunks):
-                continue
-                
-            chunk = self.chunks[idx]
-            
-            match = ClauseMatch(
-                content=chunk.content,
-                relevance_score=float(score),
-                source_location=f"Page {chunk.page_number}" if chunk.page_number else "Unknown",
-                context=self._get_context(idx)
-            )
-            matches.append(match)
-        
-        return matches
+        except Exception as e:
+            return []
     
     def _get_context(self, chunk_idx: int, context_window: int = 1) -> str:
         """
@@ -138,5 +123,5 @@ class EmbeddingSearch:
             "total_chunks": len(self.chunks),
             "avg_chunk_length": np.mean([len(chunk.content) for chunk in self.chunks]),
             "total_pages": len(set(chunk.page_number for chunk in self.chunks if chunk.page_number)),
-            "embedding_dimension": self.embeddings.shape[1] if self.embeddings is not None else 0
+            "vocabulary_size": len(self.vectorizer.vocabulary_) if self.vectorizer else 0
         }
